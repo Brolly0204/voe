@@ -91,7 +91,6 @@
             key: key,
         };
     }
-    //# sourceMappingURL=h.js.map
 
     function updateElement(dom, oldProps, newProps) {
         Object.keys(newProps)
@@ -152,7 +151,6 @@
         }
         return dom;
     }
-    //# sourceMappingURL=dom.js.map
 
     var elementMap = [];
     var worker = null;
@@ -193,8 +191,8 @@
 
     var _a;
     var MAIN = typeof window !== 'undefined';
-    var activeEffectStack = [];
-    var commitQueue = {};
+    var effectStack = [];
+    var commitQueue = [];
     var targetMap = new WeakMap();
     var COMMIT = (_a = [1, 2, 3], _a[0]), EVENT = _a[1], WEB_API = _a[2];
     function render(instance) {
@@ -204,8 +202,8 @@
         instance.update = effect(function () {
             var oldVnode = instance.subTree || null;
             var newVnode = (instance.subTree = instance.tag(instance.props));
-            var index = 0;
-            var commit = diff(0, index, oldVnode, newVnode);
+            var index = 2;
+            var commit = diff(1, index, oldVnode, newVnode);
             self.postMessage(JSON.stringify({
                 type: COMMIT,
                 data: commit
@@ -228,30 +226,106 @@
             }
         };
     }
-    function diff(parent, index, oldVnode, newVnode) {
+    function diff(parent, node, oldVnode, newVnode) {
         if (oldVnode === newVnode) ;
         else if (oldVnode != null &&
             oldVnode.type === TEXT &&
             newVnode.type === TEXT) {
-            if (oldVnode.tag !== newVnode.tag) {
-                commitQueue[index] = [index + 1, newVnode.tag];
-            }
+            if (oldVnode.tag !== newVnode.tag)
+                commitQueue.push([node, newVnode.tag]);
         }
         else if (oldVnode == null || oldVnode.tag !== newVnode.tag) {
-            commitQueue[index] = [parent, index - 1, newVnode];
+            commitQueue.push([parent, -1, newVnode]);
             if (oldVnode != null) {
-                commitQueue[index] = [parent + 1, index + 1];
+                commitQueue.push([parent, node]);
             }
         }
         else {
-            var oldChildren = oldVnode.children;
-            var children = newVnode.children;
-            commitQueue[index] = [index, oldVnode.props, newVnode.props];
-            for (var i = 0; i < oldChildren.length; i++) {
-                diff(parent, ++index + i, oldChildren[i], children[i] || {});
+            var oldKids = oldVnode.children;
+            var newKids = newVnode.children;
+            var oldStart = 0;
+            var newStart = 0;
+            var oldEnd = oldKids.length - 1;
+            var newEnd = newKids.length - 1;
+            var oldHead = oldKids[0];
+            var newHead = newKids[0];
+            var oldTail = oldKids[oldEnd];
+            var newTail = newKids[newEnd];
+            var oldKeyed = void 0;
+            var oldIdx = void 0;
+            var moveEl = void 0;
+            while (oldStart <= oldEnd && newStart <= newEnd) {
+                if (oldHead == null) {
+                    oldHead = oldKids[++oldStart];
+                }
+                else if (oldTail == null) {
+                    oldTail = oldKids[--oldEnd];
+                }
+                else if (newHead == null) {
+                    oldHead = oldKids[++newStart];
+                }
+                else if (newTail == null) {
+                    oldTail = oldKids[--newEnd];
+                }
+                else if (isSame(oldHead, newHead)) {
+                    diff(null, null, oldHead, newHead);
+                    oldHead = oldKids[++oldStart];
+                    newHead = newKids[++newStart];
+                }
+                else if (isSame(oldTail, newTail)) {
+                    diff(null, null, oldTail, newTail);
+                    oldTail = oldKids[--oldEnd];
+                    newTail = newKids[--newEnd];
+                }
+                else if (isSame(oldHead, newTail)) {
+                    diff(null, null, oldHead, newTail);
+                    //insert
+                    oldHead = oldKids[++oldStart];
+                    newTail = newKids[--newEnd];
+                }
+                else if (isSame(oldTail, newHead)) {
+                    diff(null, null, oldHead, newTail);
+                    //insert
+                    oldTail = oldKids[--oldTail];
+                    newHead = newKids[++newStart];
+                }
+                else {
+                    if (oldKeyed == null) {
+                        oldKeyed = createKeyed(oldKids, oldStart, oldEnd);
+                    }
+                    oldIdx = oldKeyed[newHead.key];
+                    if (oldIdx != null) {
+                        //insert
+                        newHead = newKids[++newStart];
+                    }
+                    else {
+                        moveEl = oldKids[oldIdx];
+                        if (moveEl.tag !== newHead.tag) ;
+                        else {
+                            // diff
+                            oldKids[oldIdx] = null;
+                            // insert
+                        }
+                        newHead = newKids[++newStart];
+                    }
+                }
             }
         }
-        return commitQueue;
+    }
+    function createKeyed(kids, start, end) {
+        var i, out = {}, key, kid;
+        for (i = start; i <= end; i++) {
+            kid = kids[i];
+            if (kid != null) {
+                key = kid.key;
+                if (key !== undefined)
+                    out[key] = i;
+            }
+        }
+        return out;
+    }
+    function isSame(a, b) {
+        return a.key === b.key && a.tag === b.tag;
     }
     function effect(fn) {
         var effect = function effect() {
@@ -264,13 +338,13 @@
         return effect;
     }
     function run(effect, fn, args) {
-        if (activeEffectStack.indexOf(effect) === -1) {
+        if (effectStack.indexOf(effect) === -1) {
             try {
-                activeEffectStack.push(effect);
+                effectStack.push(effect);
                 return fn.apply(void 0, args);
             }
             finally {
-                activeEffectStack.pop();
+                effectStack.pop();
             }
         }
     }
@@ -281,7 +355,7 @@
         effects.forEach(function (e) { return e(); });
     }
     function track(target, key) {
-        var effect = activeEffectStack[activeEffectStack.length - 1];
+        var effect = effectStack[effectStack.length - 1];
         if (effect) {
             var depsMap = targetMap.get(target);
             if (!depsMap) {
@@ -303,7 +377,6 @@
             prams: prams
         }), null);
     }
-    //# sourceMappingURL=master.js.map
 
     var toProxy = new WeakMap();
     var toRaw = new WeakMap();
@@ -344,7 +417,6 @@
         }
         return observed;
     }
-    //# sourceMappingURL=reactivity.js.map
 
     exports.h = h;
     exports.reactive = reactive;
