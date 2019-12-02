@@ -35,7 +35,6 @@ function commit(op) {
         )
       : updateElement(getElement(op[0]), op[1], op[2])
   } else {
-    console.log(op,elementMap)
     isNum(op[1])
       ? getElement(op[0]).removeChild(getElement(op[1]))
       : (getElement(op[0]).nodeValue = op[1])
