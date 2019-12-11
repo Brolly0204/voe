@@ -53,10 +53,6 @@ export function diff(oldKids, newKids, effect) {
     effect(REMOVE, oldKids[resuedKids])
   }
 
-  function equal(oldKids, newKids) {
-    return key(oldKids.item, oldKids.idx) === key(newKids.item, newKids.idx)
-  }
-
   function mapKeyToIdx(list, start, end) {
     let i
     let map = {}
@@ -81,6 +77,6 @@ function back(list, c) {
   return c
 }
 
-const key = (item, idx) => item.key || idx
-
+const key = item => item.key
+const equal = (a, b) => key(a.item) === key(b.item) && a.idx === b.idx
 const isUndefined = a => typeof a === 'undefined'
