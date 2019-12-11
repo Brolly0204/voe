@@ -2,8 +2,26 @@ const CREATE = 'CREATE'
 const UPDATE = 'UPDATE'
 const MOVE = 'MOVE'
 const REMOVE = 'REMOVE'
+const TEXT = 3
+const commitQueue = []
 
-export function diff(oldKids, newKids, effect) {
+export function diffVnode(oldVnode,newVnode){
+    if (oldVnode === newVnode) {
+    } else if (
+      oldVnode != null &&
+      oldVnode.type === TEXT &&
+      newVnode.type === TEXT
+    ) {
+      if (oldVnode.tag !== newVnode.tag) commitQueue.push([node, newVnode.tag])
+    } else if (oldVnode == null || oldVnode.tag !== newVnode.tag) {
+      commitQueue.push([parent, -1, newVnode])
+      if (oldVnode != null) {
+        commitQueue.push([parent, node])
+      }
+    }
+}
+
+export function diffChildren(oldKids, newKids, effect) {
   let oldStart = cursor(oldKids, 0)
   let oldEnd = cursor(oldKids, oldKids.length - 1)
   let newStart = cursor(newKids, 0)
