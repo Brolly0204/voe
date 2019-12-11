@@ -5,20 +5,22 @@ const REMOVE = 'REMOVE'
 const TEXT = 3
 const commitQueue = []
 
-export function diffVnode(oldVnode,newVnode){
-    if (oldVnode === newVnode) {
-    } else if (
-      oldVnode != null &&
-      oldVnode.type === TEXT &&
-      newVnode.type === TEXT
-    ) {
-      if (oldVnode.tag !== newVnode.tag) commitQueue.push([node, newVnode.tag])
-    } else if (oldVnode == null || oldVnode.tag !== newVnode.tag) {
-      commitQueue.push([parent, -1, newVnode])
-      if (oldVnode != null) {
-        commitQueue.push([parent, node])
-      }
+export function diffVnode(oldVnode, newVnode) {
+  if (oldVnode === newVnode) {
+  } else if (
+    oldVnode != null &&
+    oldVnode.type === TEXT &&
+    newVnode.type === TEXT
+  ) {
+    if (oldVnode.tag !== newVnode.tag) commitQueue.push([node, newVnode.tag])
+  } else if (oldVnode == null || oldVnode.tag !== newVnode.tag) {
+    commitQueue.push([parent, -1, newVnode])
+    if (oldVnode != null) {
+      commitQueue.push([parent, node])
     }
+  } else {
+    diffChildren(oldVnode.children, newVnode.children, null)
+  }
 }
 
 export function diffChildren(oldKids, newKids, effect) {
